@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "physics-lint-action"
+abstract: "Fail the build when a model predicts physics that cannot exist."
+type: software
+authors:
+  - name: "ChipletOS / Genesis contributors"
+version: 0.1.0
+date-released: 2026-07-28
+license: Apache-2.0
+repository-code: "https://github.com/nickharris808/physics-lint-action"
+url: "https://nickharris808.github.io/physics-lint/"
+keywords:
+  - rf
+  - signal-integrity
+  - physics
+  - verification
