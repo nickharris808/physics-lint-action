@@ -18,8 +18,10 @@ import pytest
 import yaml
 
 HERE = Path(__file__).resolve().parents[1]
-OSS = HERE.parent
-CORPUS = OSS / "sparam-conformance" / "data"
+# Fixtures live in this repository so the suite is self-contained: a test that
+# reaches into a sibling checkout silently passes when the glob matches nothing.
+CLEAN = HERE / "fixtures" / "clean"
+BAD = HERE / "fixtures" / "bad"
 RUNNER = HERE / "run_lint.py"
 
 
@@ -102,7 +104,7 @@ def test_no_inputs_is_a_noop(tmp_path):
 
 def test_clean_models_pass(tmp_path):
     _require("sparam-lint")
-    p, rep, out, summary = _run(tmp_path, PL_FILES=str(CORPUS / "passive_line.s2p"))
+    p, rep, out, summary = _run(tmp_path, PL_FILES=str(CLEAN / "passive_line.s2p"))
     assert p.returncode == 0, p.stdout + p.stderr
     assert rep["total_violations"] == 0
     assert "violations=0" in out.read_text()
@@ -111,7 +113,7 @@ def test_clean_models_pass(tmp_path):
 
 def test_bad_model_fails_the_build(tmp_path):
     _require("sparam-lint")
-    p, rep, out, summary = _run(tmp_path, PL_FILES=str(CORPUS / "active_gain.s2p"))
+    p, rep, out, summary = _run(tmp_path, PL_FILES=str(BAD / "active_gain.s2p"))
     assert p.returncode == 1
     assert rep["total_violations"] > 0
     assert "passivity" in summary.read_text()
@@ -120,17 +122,18 @@ def test_bad_model_fails_the_build(tmp_path):
 
 def test_fail_on_error_false_reports_without_failing(tmp_path):
     _require("sparam-lint")
-    p, rep, _, _ = _run(tmp_path, PL_FILES=str(CORPUS / "active_gain.s2p"),
+    p, rep, _, _ = _run(tmp_path, PL_FILES=str(BAD / "active_gain.s2p"),
                         PL_FAIL="false")
     assert p.returncode == 0
     assert rep["total_violations"] > 0, "violations must still be reported"
 
 
-def test_glob_over_whole_corpus(tmp_path):
+def test_glob_matches_multiple_files_and_reports_each(tmp_path):
+    """A glob spanning clean and bad models must check all of them and fail."""
     _require("sparam-lint")
-    p, rep, _, summary = _run(tmp_path, PL_FILES=str(CORPUS / "*.s2p"))
-    assert rep["sparam"]["n_files"] >= 10
-    assert p.returncode == 1, "the corpus contains known-bad models"
+    p, rep, _, summary = _run(tmp_path, PL_FILES=str(HERE / "fixtures" / "*" / "*.s2p"))
+    assert rep["sparam"]["n_files"] >= 2, "the glob matched nothing -- fixtures moved?"
+    assert p.returncode == 1, "the fixtures include a known-bad model"
     assert "| File | Failed laws |" in summary.read_text()
 
 
@@ -171,7 +174,7 @@ def test_extractor_check_fails_for_an_unphysical_extractor(tmp_path):
 def test_both_checks_combine(tmp_path):
     _require("sparam-lint", "maxwell-lint")
     p, rep, _, _ = _run(tmp_path,
-                        PL_FILES=str(CORPUS / "passive_line.s2p"),
+                        PL_FILES=str(CLEAN / "passive_line.s2p"),
                         PL_EXTRACTOR="maxwell_lint.models:monopole_closure")
     assert p.returncode == 0
     assert "sparam" in rep and "maxwell" in rep
@@ -179,6 +182,6 @@ def test_both_checks_combine(tmp_path):
 
 def test_report_json_is_written_and_wellformed(tmp_path):
     _require("sparam-lint")
-    _, rep, _, _ = _run(tmp_path, PL_FILES=str(CORPUS / "passive_line.s2p"))
+    _, rep, _, _ = _run(tmp_path, PL_FILES=str(CLEAN / "passive_line.s2p"))
     assert set(rep) >= {"total_violations", "total_errors", "sparam"}
     json.dumps(rep)  # must round-trip
