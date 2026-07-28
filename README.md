@@ -1,6 +1,6 @@
 # Physics Lint — GitHub Action
 
-![CI](https://github.com/nickharris808/physics-lint-action/actions/workflows/ci.yml/badge.svg) ![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-physics--lint-blue) ![Licence](https://img.shields.io/badge/licence-Apache--2.0-green) ![Tests](https://img.shields.io/badge/tests-17%20passing-brightgreen)
+![CI](https://github.com/nickharris808/physics-lint-action/actions/workflows/ci.yml/badge.svg) ![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-physics--lint-blue) ![Licence](https://img.shields.io/badge/licence-Apache--2.0-green) ![Tests](https://img.shields.io/badge/tests-21%20passing-brightgreen)
 
 **Fail the build when a model predicts physics that cannot exist.**
 
@@ -32,6 +32,39 @@ The extractor is tested against the many-body screening ceiling: a predicted
 screening factor above 1 means the extractor thinks a grounded conductor
 between two others *increases* their coupling.
 
+## Findings in the Security tab
+
+```yaml
+- uses: nickharris808/physics-lint-action@v1
+  id: lint
+  with:
+    files: 'models/**/*.s*p'
+    sarif-file: physics.sarif
+  continue-on-error: true
+
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: ${{ steps.lint.outputs.sarif }}
+```
+
+Each failing law becomes a SARIF result carrying the law, the file, and the
+measured value with the frequency it occurred at.
+
+**One deliberate omission.** SARIF results usually carry a line and column, and
+GitHub renders the annotation on the diff when they do — which is exactly what
+makes inventing one tempting. A physics failure does not happen at a line, it
+happens at a **frequency**, and a Touchstone file's rows are not the unit anyone
+reasons about. So results point at the file with no `region` and the frequency
+goes in the message where it is true. Findings appear in the Security tab and
+the check summary rather than as inline diff comments. A test asserts no
+`region` is ever emitted.
+
+The conversion lives in [`physics-lint`](https://github.com/nickharris808/physics-lint)
+so there is one copy of it rather than one per checker; the Action installs that
+package only when you set `sarif-file`. If you ask for SARIF and it cannot be
+produced, the step **fails** rather than writing nothing — an upload step with
+nothing to upload is worse than an error.
+
 ## Inputs
 
 | Input | Default | Meaning |
@@ -40,6 +73,7 @@ between two others *increases* their coupling.
 | `extractor` | `''` | `module:function` of a coupling extractor. Empty disables. |
 | `self-test` | `true` | Run the checker's negative control first. |
 | `fail-on-error` | `true` | Set `false` to report without failing. |
+| `sarif-file` | `''` | Write SARIF 2.1.0 here as well as the JSON. Empty disables. |
 | `python-version` | `3.11` | Python used for the checkers. |
 
 ## Outputs
@@ -48,6 +82,7 @@ between two others *increases* their coupling.
 |---|---|
 | `violations` | Total violations found |
 | `report` | Path to the JSON report |
+| `sarif` | Path to the SARIF file, if `sarif-file` was set |
 
 ## Exit behaviour
 

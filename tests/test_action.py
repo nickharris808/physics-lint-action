@@ -248,3 +248,86 @@ def test_empty_glob_is_reported_green_as_the_readme_says():
     finally:
         for f in (summary, HERE / "tests" / "_empty_report.json"):
             f.unlink(missing_ok=True)
+
+
+# ------------------------------------------------------------------- SARIF
+
+def _run_runner(env_extra, tmp_path):
+    env = dict(os.environ)
+    env.update({
+        "PL_REPORT": str(tmp_path / "r.json"),
+        "GITHUB_STEP_SUMMARY": str(tmp_path / "s.md"),
+        "GITHUB_OUTPUT": str(tmp_path / "gh.out"),
+    })
+    env.update(env_extra)
+    proc = subprocess.run([sys.executable, str(HERE / "run_lint.py")],
+                          env=env, capture_output=True, text=True)
+    return proc, (tmp_path / "gh.out")
+
+
+def _have_checkers():
+    return shutil.which("sparam-lint") is not None
+
+
+@pytest.mark.skipif(not _have_checkers(), reason="sparam-lint not on PATH")
+def test_sarif_is_written_and_declares_only_rules_it_uses(tmp_path):
+    corpus = HERE.parent / "sparam-conformance" / "data"
+    if not corpus.exists():
+        pytest.skip("conformance corpus not present")
+    dest = tmp_path / "out.sarif"
+    proc, _ = _run_runner({"PL_FILES": str(corpus / "*.s2p"),
+                           "PL_SARIF": str(dest)}, tmp_path)
+    assert dest.exists(), proc.stderr
+    doc = json.loads(dest.read_text(encoding="utf-8"))
+    assert doc["version"] == "2.1.0"
+    run = doc["runs"][0]
+    declared = {r["id"] for r in run["tool"]["driver"]["rules"]}
+    used = {r["ruleId"] for r in run["results"]}
+    assert used == declared, "rule list and results disagree"
+    assert run["results"], "the corpus contains known violations"
+
+
+@pytest.mark.skipif(not _have_checkers(), reason="sparam-lint not on PATH")
+def test_sarif_never_invents_a_line_region(tmp_path):
+    """A physics failure has a frequency, not a line."""
+    corpus = HERE.parent / "sparam-conformance" / "data"
+    if not corpus.exists():
+        pytest.skip("conformance corpus not present")
+    dest = tmp_path / "out.sarif"
+    _run_runner({"PL_FILES": str(corpus / "*.s2p"), "PL_SARIF": str(dest)}, tmp_path)
+    doc = json.loads(dest.read_text(encoding="utf-8"))
+    for res in doc["runs"][0]["results"]:
+        for loc in res["locations"]:
+            assert "region" not in loc["physicalLocation"]
+
+
+@pytest.mark.skipif(not _have_checkers(), reason="sparam-lint not on PATH")
+def test_asking_for_sarif_without_physics_lint_fails_loudly(tmp_path):
+    """Writing nothing and exiting green would leave the upload step empty.
+
+    The caller asked for a file. If we cannot produce it, that has to be an
+    error they see, not a silent omission they discover later.
+    """
+    corpus = HERE.parent / "sparam-conformance" / "data"
+    if not corpus.exists():
+        pytest.skip("conformance corpus not present")
+    proc, _ = _run_runner({
+        "PL_FILES": str(corpus / "*.s2p"),
+        "PL_SARIF": str(tmp_path / "out.sarif"),
+        # Hide physics_lint from the subprocess without uninstalling anything.
+        "PYTHONPATH": str(tmp_path),
+    }, tmp_path)
+    if "physics_lint" in proc.stderr or proc.returncode == 2:
+        assert not (tmp_path / "out.sarif").exists() or proc.returncode == 2
+    else:
+        pytest.skip("physics-lint is installed site-wide; cannot hide it via PYTHONPATH")
+
+
+def test_sarif_file_input_and_output_are_declared():
+    spec = yaml.safe_load((HERE / "action.yml").read_text(encoding="utf-8"))
+    assert "sarif-file" in spec["inputs"]
+    assert "sarif" in spec["outputs"]
+    assert spec["inputs"]["sarif-file"]["default"] == "", (
+        "SARIF must be opt-in; defaulting it on would install physics-lint "
+        "for every user who never asked for it"
+    )

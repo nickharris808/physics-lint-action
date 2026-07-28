@@ -42,9 +42,11 @@ def check_files(pattern: str) -> dict:
             errors += 1
             results.append({"file": path, "error": payload.get("error", "parse failed")})
             continue
-        failed = [law["law"] for law in payload.get("laws", []) if not law["passed"]]
+        laws = payload.get("laws", [])
+        failed = [law["law"] for law in laws if not law["passed"]]
         violations += len(failed)
-        results.append({"file": path, "passed": not failed, "failed_laws": failed})
+        results.append({"file": path, "passed": not failed, "failed_laws": failed,
+                        "laws": laws})
     return {"pattern": pattern, "n_files": len(paths), "violations": violations,
             "errors": errors, "results": results}
 
@@ -95,6 +97,34 @@ def summary_md(report: dict) -> str:
     return "\n".join(lines)
 
 
+def _write_sarif(report: dict, dest: str) -> str | None:
+    """Emit SARIF via physics-lint, or refuse loudly if it is not installed.
+
+    The conversion deliberately lives in one place rather than being reimplemented
+    here. If the caller asked for SARIF and we cannot produce it, that is an
+    error -- writing nothing and exiting green would leave them believing the
+    upload step had something to upload.
+    """
+    if not dest:
+        return None
+    try:
+        from physics_lint.sarif import sarif_from_sparam
+    except ImportError:
+        print("::error::sarif-file was set but physics-lint is not installed; "
+              "install git+https://github.com/nickharris808/physics-lint.git@main")
+        raise SystemExit(2) from None
+
+    sp = report.get("sparam")
+    if sp is None:
+        print("::warning::sarif-file was set but no S-parameter files were "
+              "checked; writing an empty SARIF run")
+        doc = sarif_from_sparam({"files": []})
+    else:
+        doc = sarif_from_sparam({"files": sp["results"]})
+    Path(dest).write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    return dest
+
+
 def main() -> int:
     files = os.environ.get("PL_FILES", "").strip()
     extractor = os.environ.get("PL_EXTRACTOR", "").strip()
@@ -124,10 +154,13 @@ def main() -> int:
     if (gs := os.environ.get("GITHUB_STEP_SUMMARY")):
         with open(gs, "a") as fh:
             fh.write(md + "\n")
+    sarif_path = _write_sarif(report, os.environ.get("PL_SARIF", "").strip())
+
     if (go := os.environ.get("GITHUB_OUTPUT")):
         with open(go, "a") as fh:
             fh.write(f"violations={report['total_violations']}\n")
             fh.write(f"report={out_path}\n")
+            fh.write(f"sarif={sarif_path or ''}\n")
 
     if report["total_errors"]:
         return 2
