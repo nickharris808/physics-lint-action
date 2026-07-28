@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -185,3 +186,38 @@ def test_report_json_is_written_and_wellformed(tmp_path):
     _, rep, _, _ = _run(tmp_path, PL_FILES=str(CLEAN / "passive_line.s2p"))
     assert set(rep) >= {"total_violations", "total_errors", "sparam"}
     json.dumps(rep)  # must round-trip
+
+
+# --------------------------------------------- the documented summary must add up
+
+def test_readme_example_summary_is_internally_consistent():
+    """The example is generated, but a hand-edit could still desync the counts.
+
+    The table lists one row per failing file and names each failed law, so the
+    two headline numbers -- files with violations, and total violations -- are
+    both derivable from the table itself. If someone tweaks a number without
+    regenerating, this goes red.
+    """
+    readme = (HERE / "README.md").read_text()
+    block = readme.split("## Example summary", 1)[1].split("\nNote ", 1)[0]
+
+    rows = [ln for ln in block.splitlines()
+            if ln.startswith("> | `") and ".s2p`" in ln]
+    laws = sum(len(ln.split("|")[2].split(",")) for ln in rows)
+
+    n_with = int(re.search(r"(\d+) with violations", block).group(1))
+    n_viol = int(re.search(r"\*\*(\d+) violation\(s\)", block).group(1))
+
+    assert len(rows) == n_with, f"{len(rows)} rows listed, headline says {n_with}"
+    assert laws == n_viol, f"table names {laws} failed laws, headline says {n_viol}"
+
+
+def test_readme_regeneration_command_matches_the_paths_it_shows():
+    """A command whose output does not match the pasted table is worse than none."""
+    readme = (HERE / "README.md").read_text()
+    block = readme.split("## Example summary", 1)[1].split("\nNote ", 1)[0]
+    glob = re.search(r"PL_FILES='([^']+)'", block).group(1)
+    prefix = glob.rsplit("/", 1)[0] + "/"
+    rows = [ln for ln in block.splitlines() if ln.startswith("> | `")]
+    for ln in rows:
+        assert prefix in ln, f"row does not come from {glob}: {ln}"

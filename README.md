@@ -1,6 +1,6 @@
 # Physics Lint — GitHub Action
 
-![CI](https://github.com/nickharris808/physics-lint-action/actions/workflows/ci.yml/badge.svg) ![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-physics--lint-blue) ![Licence](https://img.shields.io/badge/licence-Apache--2.0-green) ![Tests](https://img.shields.io/badge/tests-13%20passing-brightgreen)
+![CI](https://github.com/nickharris808/physics-lint-action/actions/workflows/ci.yml/badge.svg) ![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-physics--lint-blue) ![Licence](https://img.shields.io/badge/licence-Apache--2.0-green) ![Tests](https://img.shields.io/badge/tests-15%20passing-brightgreen)
 
 **Fail the build when a model predicts physics that cannot exist.**
 
@@ -72,7 +72,15 @@ It costs about a second. Leave it on.
 ## Example summary
 
 Run over a directory of models, this is what lands in the
-job summary — generated, not illustrated:
+job summary. It is generated, not illustrated, and you can regenerate it — the
+input is the ten 2-port cases from the
+[`sparam-conformance`](https://huggingface.co/datasets/nickh007/sparam-conformance)
+corpus:
+
+```bash
+git clone https://huggingface.co/datasets/nickh007/sparam-conformance
+PL_FILES='sparam-conformance/data/*.s2p' GITHUB_STEP_SUMMARY=/dev/stdout python3 run_lint.py
+```
 
 > ## Physics Lint
 >
@@ -80,11 +88,11 @@ job summary — generated, not illustrated:
 >
 > | File | Failed laws |
 > |---|---|
-> | `models/active_gain.s2p` | passivity, energy_conservation |
-> | `models/energy_row_violation.s2p` | passivity, energy_conservation |
-> | `models/ferrite_isolator.s2p` | reciprocity |
-> | `models/negative_resistance.s2p` | passivity, energy_conservation, positive_real_z0 |
-> | `models/noncausal_advance.s2p` | group_delay_nonneg |
+> | `sparam-conformance/data/active_gain.s2p` | passivity, energy_conservation |
+> | `sparam-conformance/data/energy_row_violation.s2p` | passivity, energy_conservation |
+> | `sparam-conformance/data/ferrite_isolator.s2p` | reciprocity |
+> | `sparam-conformance/data/negative_resistance.s2p` | passivity, energy_conservation, positive_real_z0 |
+> | `sparam-conformance/data/noncausal_advance.s2p` | group_delay_nonneg |
 >
 > ❌ **9 violation(s).** These models describe behaviour that cannot occur in a passive linear system.
 
