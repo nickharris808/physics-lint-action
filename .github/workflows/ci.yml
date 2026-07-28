@@ -1,0 +1,41 @@
+name: CI
+on: { push: { branches: [main] }, pull_request: {}, workflow_dispatch: {} }
+
+jobs:
+  runner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install pytest pyyaml numpy
+      # PyPI once published; sibling checkout while this lives in the monorepo.
+      - run: pip install sparam-lint maxwell-lint || pip install ../sparam-lint ../maxwell-lint
+      # The tests skip when the console scripts are missing, so assert they are
+      # present -- otherwise a broken install shows up as a green run with a
+      # quiet pile of skips.
+      - name: Checkers must be on PATH
+        run: |
+          command -v sparam-lint  || { echo "::error::sparam-lint not installed";  exit 1; }
+          command -v maxwell-lint || { echo "::error::maxwell-lint not installed"; exit 1; }
+      - run: pytest -q
+
+  self-use:
+    name: the action runs itself
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clean models must pass
+        uses: ./
+        with:
+          files: 'fixtures/clean/*.s2p'
+      - name: Known-bad model must fail (inverted check)
+        id: bad
+        continue-on-error: true
+        uses: ./
+        with:
+          files: 'fixtures/bad/*.s2p'
+      - name: Assert the bad run failed
+        run: |
+          [ "${{ steps.bad.outcome }}" = "failure" ] \
+            || { echo "::error::action did not fail on a known-bad model"; exit 1; }

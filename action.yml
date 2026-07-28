@@ -1,0 +1,68 @@
+name: 'Physics Lint'
+description: 'Fail the build when an S-parameter model or coupling extractor predicts physics that cannot exist.'
+author: 'ChipletOS / Genesis contributors'
+branding:
+  icon: 'alert-triangle'
+  color: 'red'
+
+inputs:
+  files:
+    description: 'Glob of Touchstone files to check (e.g. "models/**/*.s*p"). Empty disables the S-parameter check.'
+    required: false
+    default: ''
+  extractor:
+    description: 'Dotted path module:function of a coupling extractor to check against the screening ceiling. Empty disables.'
+    required: false
+    default: ''
+  self-test:
+    description: 'Run the checkers own negative control first. A clean report from an unverified checker is worth nothing.'
+    required: false
+    default: 'true'
+  fail-on-error:
+    description: 'Fail the build on violations. Set false to report only.'
+    required: false
+    default: 'true'
+  python-version:
+    description: 'Python version to use.'
+    required: false
+    default: '3.11'
+
+outputs:
+  violations:
+    description: 'Total number of violations found.'
+    value: ${{ steps.run.outputs.violations }}
+  report:
+    description: 'Path to the JSON report.'
+    value: ${{ steps.run.outputs.report }}
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install checkers
+      shell: bash
+      run: |
+        python -m pip install --quiet --upgrade pip
+        python -m pip install --quiet "${{ github.action_path }}/../sparam-lint" \
+                                      "${{ github.action_path }}/../maxwell-lint" \
+          || python -m pip install --quiet sparam-lint maxwell-lint
+
+    - name: Verify the checkers discriminate
+      if: inputs.self-test == 'true'
+      shell: bash
+      run: |
+        echo "::group::negative control"
+        sparam-lint --self-test --no-colour
+        echo "::endgroup::"
+
+    - name: Run physics lint
+      id: run
+      shell: bash
+      run: python "${{ github.action_path }}/run_lint.py"
+      env:
+        PL_FILES: ${{ inputs.files }}
+        PL_EXTRACTOR: ${{ inputs.extractor }}
+        PL_FAIL: ${{ inputs.fail-on-error }}
