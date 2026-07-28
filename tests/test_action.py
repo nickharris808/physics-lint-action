@@ -221,3 +221,30 @@ def test_readme_regeneration_command_matches_the_paths_it_shows():
     rows = [ln for ln in block.splitlines() if ln.startswith("> | `")]
     for ln in rows:
         assert prefix in ln, f"row does not come from {glob}: {ln}"
+
+
+def test_readme_documents_only_environment_variables_that_exist():
+    """The local-run section names PL_* twins. They must be the real ones."""
+    runner = (HERE / "run_lint.py").read_text(encoding="utf-8")
+    section = (HERE / "README.md").read_text(encoding="utf-8").split(
+        "## Running it locally", 1)[1].split("## Troubleshooting", 1)[0]
+    named = set(re.findall(r"`?(PL_[A-Z_]+|GITHUB_STEP_SUMMARY)`?", section))
+    assert named, "the local-run section names no variables -- guard has stopped looking"
+    for var in named:
+        assert f'"{var}"' in runner, f"README names {var}, which the runner never reads"
+
+
+def test_empty_glob_is_reported_green_as_the_readme_says():
+    """An empty match is a path mistake, not a physics failure."""
+    summary = HERE / "tests" / "_empty_summary.md"
+    env = dict(os.environ, PL_FILES=str(HERE / "no_such_dir" / "*.s2p"),
+               GITHUB_STEP_SUMMARY=str(summary),
+               PL_REPORT=str(HERE / "tests" / "_empty_report.json"))
+    try:
+        rc = subprocess.run([sys.executable, str(HERE / "run_lint.py")],
+                            env=env, capture_output=True, text=True).returncode
+        assert rc == 0, "README says an empty glob stays green"
+        assert "No files matched" in summary.read_text(encoding="utf-8")
+    finally:
+        for f in (summary, HERE / "tests" / "_empty_report.json"):
+            f.unlink(missing_ok=True)

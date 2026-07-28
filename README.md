@@ -1,6 +1,6 @@
 # Physics Lint — GitHub Action
 
-![CI](https://github.com/nickharris808/physics-lint-action/actions/workflows/ci.yml/badge.svg) ![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-physics--lint-blue) ![Licence](https://img.shields.io/badge/licence-Apache--2.0-green) ![Tests](https://img.shields.io/badge/tests-15%20passing-brightgreen)
+![CI](https://github.com/nickharris808/physics-lint-action/actions/workflows/ci.yml/badge.svg) ![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-physics--lint-blue) ![Licence](https://img.shields.io/badge/licence-Apache--2.0-green) ![Tests](https://img.shields.io/badge/tests-17%20passing-brightgreen)
 
 **Fail the build when a model predicts physics that cannot exist.**
 
@@ -101,6 +101,45 @@ non-reciprocal, so `S ≠ Sᵀ` is correct behaviour. The check firing there is 
 true positive for the law and a false alarm for the device. Declare
 non-reciprocity expected for those files rather than switching the law off.
 
+## A worked example: adding this to a repo that has models in it
+
+Three steps, and the middle one is the point.
+
+**1 — add the step.** In `.github/workflows/physics.yml`:
+
+```yaml
+name: Physics
+on: [pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nickharris808/physics-lint-action@v1
+        with:
+          files: 'models/**/*.s*p'
+```
+
+**2 — expect the first run to be red, and read it before you react.** A
+repository that has never had a physics check almost always has something in it
+that fails one. The job summary names the file and the law, so the question is
+which kind of failure it is:
+
+- *passivity* or *energy conservation* — the model produces power from nothing.
+  Something is wrong with the export or the de-embedding.
+- *group delay* — the model responds before it is excited, or the frequency
+  sweep is out of order.
+- *reciprocity* on a ferrite, isolator or circulator — **correct behaviour.**
+  That medium is non-reciprocal. This is the one case where the right response
+  is to record the expectation for that file, not to change the code.
+
+**3 — do not switch the law off.** Suppressing reciprocity to quiet one isolator
+also blinds the check to the transposed-reshape bug it exists to catch. Narrow
+the glob, or exclude the file, and say why in the commit message.
+
+Once it is green, it stays cheap: no cloud backend, no prover, nothing to pay
+for. The Action installs the two checkers from source and runs them.
+
 ## Running it locally
 
 The runner is a plain script with no CI-only magic, because an Action you cannot
@@ -109,6 +148,40 @@ run locally is one you cannot debug:
 ```bash
 PL_FILES='models/**/*.s2p' python run_lint.py
 ```
+
+Every input has an environment-variable twin, which is exactly what the Action
+sets: `PL_FILES`, `PL_EXTRACTOR`, `PL_FAIL`, plus `PL_REPORT` for the JSON path.
+`GITHUB_STEP_SUMMARY` is honoured if set, so pointing it at `/dev/stdout` prints
+the summary you would get in CI.
+
+## Troubleshooting
+
+**`No files matched` and the build is green** — the glob matched nothing. That
+is reported in the summary rather than failing, because an empty match is
+usually a path mistake rather than a physics problem; check the glob is relative
+to the repository root and that `actions/checkout` ran first.
+
+**Exit code 2** — a file could not be parsed. This fails the build on purpose. A
+checker that skips what it cannot read silently approves it.
+
+**`sparam-lint: command not found` inside the Action** — the install step failed,
+usually because the runner had no network. The Action installs both checkers
+from their GitHub repositories; there is no package-index dependency, but there
+is a network one.
+
+**Every PR fails on the same legitimate device** — narrow `files` to exclude it,
+or move non-reciprocal parts into their own directory. Do not set
+`fail-on-error: false` globally to cope with one file; that turns the whole
+check into decoration.
+
+**The self-test step fails (exit 3)** — the checker itself is not
+discriminating. That is a much more serious signal than a model failure and
+should never be worked around; open an issue against `sparam-lint` with the run
+log.
+
+**You want the report as an artifact** — the `report` output is the JSON path.
+Follow the Action with `actions/upload-artifact` pointed at
+`${{ steps.<id>.outputs.report }}`.
 
 ## Scope, honestly
 
