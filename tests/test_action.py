@@ -37,10 +37,11 @@ def _search_path() -> str:
 
 def _env(**kw):
     """CI-like environment: the installed console scripts must be on PATH."""
-    e = {
-        "PATH": _search_path(),
-        "HOME": os.environ.get("HOME", "/tmp"),
-    }
+    # Inherit the OS environment and override only what the runner needs.
+    # A hand-built env is not portable: on Windows, Python aborts at startup
+    # without SYSTEMROOT.
+    e = dict(os.environ)
+    e["PATH"] = _search_path()
     e.update({k: str(v) for k, v in kw.items()})
     return e
 

@@ -46,9 +46,9 @@ runs:
       shell: bash
       run: |
         python -m pip install --quiet --upgrade pip
-        python -m pip install --quiet "${{ github.action_path }}/../sparam-lint" \
-                                      "${{ github.action_path }}/../maxwell-lint" \
-          || python -m pip install --quiet sparam-lint maxwell-lint
+        # Installed from source: these are not on a package index yet.
+        # Swap for `sparam-lint maxwell-lint` once they are published.
+        python -m pip install --quiet git+https://github.com/nickharris808/sparam-lint.git@main git+https://github.com/nickharris808/maxwell-lint.git@main
 
     - name: Verify the checkers discriminate
       if: inputs.self-test == 'true'

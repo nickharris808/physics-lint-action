@@ -10,7 +10,8 @@ jobs:
         with: { python-version: '3.12' }
       - run: pip install pytest pyyaml numpy
       # PyPI once published; sibling checkout while this lives in the monorepo.
-      - run: pip install sparam-lint maxwell-lint || pip install ../sparam-lint ../maxwell-lint
+      # Not on a package index yet; install from the published repos.
+      - run: pip install git+https://github.com/nickharris808/sparam-lint.git@main git+https://github.com/nickharris808/maxwell-lint.git@main
       # The tests skip when the console scripts are missing, so assert they are
       # present -- otherwise a broken install shows up as a green run with a
       # quiet pile of skips.
