@@ -69,14 +69,14 @@ def _run(tmp_path, **kw):
     env = _env(PL_REPORT=report, GITHUB_OUTPUT=out, GITHUB_STEP_SUMMARY=summary, **kw)
     p = subprocess.run([sys.executable, str(RUNNER)], capture_output=True,
                        text=True, env=env, cwd=tmp_path)
-    payload = json.loads(report.read_text()) if report.exists() else None
+    payload = json.loads(report.read_text(encoding="utf-8")) if report.exists() else None
     return p, payload, out, summary
 
 
 # ------------------------------------------------------------------ manifest
 
 def test_action_yml_is_valid_yaml_and_complete():
-    spec = yaml.safe_load((HERE / "action.yml").read_text())
+    spec = yaml.safe_load((HERE / "action.yml").read_text(encoding="utf-8"))
     assert spec["name"] and spec["description"]
     assert spec["runs"]["using"] == "composite"
     for key in ("files", "extractor", "self-test", "fail-on-error"):
@@ -88,7 +88,7 @@ def test_action_yml_is_valid_yaml_and_complete():
 def test_action_runs_self_test_before_checking_models():
     """A clean report from an unverified checker is worth nothing, so the
     negative control must come first in the step order."""
-    spec = yaml.safe_load((HERE / "action.yml").read_text())
+    spec = yaml.safe_load((HERE / "action.yml").read_text(encoding="utf-8"))
     names = [s.get("name", "") for s in spec["runs"]["steps"]]
     i_self = next(i for i, n in enumerate(names) if "discriminate" in n.lower())
     i_run = next(i for i, n in enumerate(names) if "physics lint" in n.lower())
@@ -108,8 +108,8 @@ def test_clean_models_pass(tmp_path):
     p, rep, out, summary = _run(tmp_path, PL_FILES=str(CLEAN / "passive_line.s2p"))
     assert p.returncode == 0, p.stdout + p.stderr
     assert rep["total_violations"] == 0
-    assert "violations=0" in out.read_text()
-    assert "No physically impossible predictions" in summary.read_text()
+    assert "violations=0" in out.read_text(encoding="utf-8")
+    assert "No physically impossible predictions" in summary.read_text(encoding="utf-8")
 
 
 def test_bad_model_fails_the_build(tmp_path):
@@ -117,8 +117,8 @@ def test_bad_model_fails_the_build(tmp_path):
     p, rep, out, summary = _run(tmp_path, PL_FILES=str(BAD / "active_gain.s2p"))
     assert p.returncode == 1
     assert rep["total_violations"] > 0
-    assert "passivity" in summary.read_text()
-    assert "violations=" in out.read_text()
+    assert "passivity" in summary.read_text(encoding="utf-8")
+    assert "violations=" in out.read_text(encoding="utf-8")
 
 
 def test_fail_on_error_false_reports_without_failing(tmp_path):
@@ -135,7 +135,7 @@ def test_glob_matches_multiple_files_and_reports_each(tmp_path):
     p, rep, _, summary = _run(tmp_path, PL_FILES=str(HERE / "fixtures" / "*" / "*.s2p"))
     assert rep["sparam"]["n_files"] >= 2, "the glob matched nothing -- fixtures moved?"
     assert p.returncode == 1, "the fixtures include a known-bad model"
-    assert "| File | Failed laws |" in summary.read_text()
+    assert "| File | Failed laws |" in summary.read_text(encoding="utf-8")
 
 
 def test_unparseable_file_is_an_error_not_a_pass(tmp_path):
@@ -152,7 +152,7 @@ def test_no_matching_files_is_not_a_failure(tmp_path):
     p, rep, _, summary = _run(tmp_path, PL_FILES=str(tmp_path / "nothing*.s2p"))
     assert p.returncode == 0
     assert rep["sparam"]["n_files"] == 0
-    assert "No files matched" in summary.read_text()
+    assert "No files matched" in summary.read_text(encoding="utf-8")
 
 
 def test_extractor_check_passes_for_a_sound_extractor(tmp_path):
@@ -169,7 +169,7 @@ def test_extractor_check_fails_for_an_unphysical_extractor(tmp_path):
                               PL_EXTRACTOR="maxwell_lint.models:born_second_order")
     assert p.returncode == 1
     assert rep["maxwell"]["violations"] > 0
-    assert "screening ceiling" in summary.read_text()
+    assert "screening ceiling" in summary.read_text(encoding="utf-8")
 
 
 def test_both_checks_combine(tmp_path):
@@ -198,7 +198,7 @@ def test_readme_example_summary_is_internally_consistent():
     both derivable from the table itself. If someone tweaks a number without
     regenerating, this goes red.
     """
-    readme = (HERE / "README.md").read_text()
+    readme = (HERE / "README.md").read_text(encoding="utf-8")
     block = readme.split("## Example summary", 1)[1].split("\nNote ", 1)[0]
 
     rows = [ln for ln in block.splitlines()
@@ -214,7 +214,7 @@ def test_readme_example_summary_is_internally_consistent():
 
 def test_readme_regeneration_command_matches_the_paths_it_shows():
     """A command whose output does not match the pasted table is worse than none."""
-    readme = (HERE / "README.md").read_text()
+    readme = (HERE / "README.md").read_text(encoding="utf-8")
     block = readme.split("## Example summary", 1)[1].split("\nNote ", 1)[0]
     glob = re.search(r"PL_FILES='([^']+)'", block).group(1)
     prefix = glob.rsplit("/", 1)[0] + "/"

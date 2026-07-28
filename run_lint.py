@@ -116,7 +116,7 @@ def main() -> int:
         report["total_errors"] += report["maxwell"]["errors"]
 
     out_path = Path(os.environ.get("PL_REPORT", "physics-lint-report.json"))
-    out_path.write_text(json.dumps(report, indent=2) + "\n")
+    out_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
     md = summary_md(report)
     print(md)
