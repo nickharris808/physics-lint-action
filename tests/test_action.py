@@ -15,7 +15,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 import yaml
 
 HERE = Path(__file__).resolve().parents[1]
