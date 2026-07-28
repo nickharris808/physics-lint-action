@@ -113,10 +113,30 @@ read as validation. It is not. It is the floor: it catches models that describe
 behaviour no passive linear system can produce, and says nothing about whether
 the model matches the thing you actually built.
 
+## The rest of the toolkit
+
+Eight artifacts that answer one question in different places: **is this
+model physically possible?** Each is a grader — it can tell you a model is
+wrong; none can tell you one is right.
+
+| | |
+|---|---|
+| [`sparam-lint`](https://github.com/nickharris808/sparam-lint) | Is an S-parameter model physically possible? Five laws + a negative control. |
+| [`maxwell-lint`](https://github.com/nickharris808/maxwell-lint) | Does a coupling extractor predict impossible physics? Screening ceiling k ≤ 1. |
+| [`abstain-bench`](https://github.com/nickharris808/abstain-bench) | Does a model know when to shut up? Abstention recall, never pooled with accuracy. |
+| [`sparam-conformance`](https://huggingface.co/datasets/nickh007/sparam-conformance) | 11 labelled networks with verified ground truth. Grades the graders. |
+| [`screening-ceiling`](https://huggingface.co/datasets/nickh007/screening-ceiling) | A certified impossibility result + 27 counterexamples. Zero-dependency verifier. |
+| [`physics-lint-action`](https://github.com/nickharris808/physics-lint-action) ← you are here | The same checks, in your CI. |
+| [`physics-lint-mcp`](https://github.com/nickharris808/physics-lint-mcp) | A physics oracle your AI agent can call. |
+| [**Try it in your browser**](https://huggingface.co/spaces/nickh007/physics-lint) | All three checks, no install, runs client-side. |
+
+These tools **grade** a model. Producing one that is passive *by
+construction* — so it cannot fail these laws whatever its parameters — and
+accurate at speed in the many-body regime, with calibrated abstention and a
+fail-closed signoff certificate, is the commercial core:
+**[ChipletOS](https://chipletos.com)**.
+
 ## Licence
 
 Apache-2.0. See [LICENSE](LICENSE).
 
-Built on [`sparam-lint`](https://github.com/nickharris808/sparam-lint) and [`maxwell-lint`](https://github.com/nickharris808/maxwell-lint).
-The passive-by-construction synthesis that cannot fail these laws is the
-[ChipletOS](https://chipletos.com) closed core.
