@@ -1,6 +1,6 @@
 # Physics Lint — GitHub Action
 
-![CI](https://github.com/nickharris808/physics-lint-action/actions/workflows/ci.yml/badge.svg) ![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-physics--lint-blue) ![Licence](https://img.shields.io/badge/licence-Apache--2.0-green) ![Tests](https://img.shields.io/badge/tests-20%20passing-brightgreen)
+![CI](https://github.com/nickharris808/physics-lint-action/actions/workflows/ci.yml/badge.svg) ![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-physics--lint-blue) ![Licence](https://img.shields.io/badge/licence-Apache--2.0-green) ![Tests](https://img.shields.io/badge/tests-26%20passing-brightgreen)
 
 📖 **[Documentation site](https://nickharris808.github.io/physics-lint/)** — the portfolio narrative, the concepts, a full walkthrough, and what all of this proves (and does not).
 
@@ -258,3 +258,10 @@ fail-closed signoff certificate, is the commercial core:
 
 Apache-2.0. See [LICENSE](LICENSE).
 
+## Contributing
+
+One non-negotiable rule here: a file that could not be parsed must never be reported as a pass; exit 2 outranks exit 1 on purpose. [`CONTRIBUTING.md`](CONTRIBUTING.md) has the detail. Each sibling repository states its own, and they differ — that is deliberate, and it is why each is trustworthy on its own terms.
+
+## Citation
+
+[`CITATION.cff`](CITATION.cff) is machine-readable; GitHub renders a “Cite this repository” button from it.
